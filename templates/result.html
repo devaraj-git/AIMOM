@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Meeting Minutes - {{ meeting.title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="display-6 mb-2">
+                    <i class="fas fa-file-alt text-primary me-3"></i>
+                    Meeting Minutes
+                </h1>
+                <p class="text-muted mb-0">Generated on {{ meeting.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+            </div>
+            <div class="d-flex gap-2">
+                {% if meeting.participants %}
+                <form action="{{ url_for('send_email', meeting_id=meeting.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-envelope me-2"></i>Send to Participants
+                    </button>
+                </form>
+                {% endif %}
+                <a href="{{ url_for('export_meeting', meeting_id=meeting.id, format='pdf') }}" 
+                   class="btn btn-outline-primary">
+                    <i class="fas fa-file-pdf me-2"></i>Download PDF
+                </a>
+                <a href="{{ url_for('export_meeting', meeting_id=meeting.id, format='txt') }}" 
+                   class="btn btn-outline-secondary">
+                    <i class="fas fa-file-alt me-2"></i>Download TXT
+                </a>
+            </div>
+        </div>
+
+        <!-- Meeting Details Card -->
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Meeting Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold">Title:</h6>
+                        <p class="mb-3">{{ meeting.title }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold">Date:</h6>
+                        <p class="mb-3">{{ meeting.get_formatted_date() }}</p>
+                    </div>
+                </div>
+                
+                {% if meeting.participants %}
+                <div class="row">
+                    <div class="col-12">
+                        <h6 class="fw-bold">Participants:</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for participant in meeting.get_participants_list() %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-user me-1"></i>{{ participant }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Summary Card -->
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list-ul me-2"></i>
+                    Meeting Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                {% set summary_points = meeting.get_summary_points() %}
+                {% if summary_points %}
+                    <ul class="list-group list-group-flush">
+                        {% for point in summary_points %}
+                            <li class="list-group-item border-0 ps-0">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                {{ point }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-exclamation-triangle text-warning fa-2x mb-3"></i>
+                        <p class="text-muted">No summary points generated</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Full Transcript Card -->
+        <div class="card shadow">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-quote-left me-2"></i>
+                    Full Transcript
+                </h5>
+                <button class="btn btn-sm btn-outline-secondary" type="button" 
+                        data-bs-toggle="collapse" data-bs-target="#transcriptCollapse">
+                    <i class="fas fa-eye me-1"></i>Toggle View
+                </button>
+            </div>
+            <div class="collapse show" id="transcriptCollapse">
+                <div class="card-body">
+                    {% if meeting.transcript %}
+                        <div class="transcript-content">
+                            <p style="line-height: 1.8; white-space: pre-wrap;">{{ meeting.transcript }}</p>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-exclamation-triangle text-warning fa-2x mb-3"></i>
+                            <p class="text-muted">No transcript available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="text-center mt-4">
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>
+                Process Another Meeting
+            </a>
+            <a href="{{ url_for('history') }}" class="btn btn-outline-secondary ms-2">
+                <i class="fas fa-history me-2"></i>
+                View History
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Auto-scroll to top when page loads
+    window.scrollTo(0, 0);
+    
+    // Add copy to clipboard functionality for transcript
+    document.addEventListener('DOMContentLoaded', function() {
+        const transcript = document.querySelector('.transcript-content');
+        if (transcript) {
+            transcript.style.cursor = 'pointer';
+            transcript.title = 'Click to copy transcript';
+            
+            transcript.addEventListener('click', function() {
+                navigator.clipboard.writeText(this.textContent).then(function() {
+                    // Show success message
+                    const toast = document.createElement('div');
+                    toast.className = 'alert alert-success position-fixed top-0 end-0 m-3';
+                    toast.style.zIndex = '9999';
+                    toast.innerHTML = '<i class="fas fa-check me-2"></i>Transcript copied to clipboard!';
+                    document.body.appendChild(toast);
+                    
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 2000);
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}
